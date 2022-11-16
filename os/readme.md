@@ -106,6 +106,8 @@ _start:
 
 在编译后， `BASE_ADDR` `0x80200000` 会放很多和elf文件格式有关的元数据，导致对应地址读出来的不是我们的指令，因此需要对编译后文件进行裁剪.
 
+obj-copy 工具通过 ` cargo install cargo-binutils` 安装
+
 ```shell
 riscv64-unknown-elf-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/os -O binary target/riscv64gc-unknown-none-elf/release/os.bin
 ```
@@ -131,3 +133,41 @@ riscv64-unknown-elf-gdb \
     -ex 'set arch riscv:rv64' \
     -ex 'target remote localhost:1234'
 ```
+
+## 内核支持函数调用
+
+asm代码需要设置栈，然后再跳到rust代码中。
+
+riscv需要提供的功能：把return回来下一条指令的地址放到rd，同时实现跳转
+
+- jal rd, imm[20 : 1] # pc + imm
+- jalr rd, (imm[11 : 0])rs # pc <- rs+imm
+
+这里的 `rd` (register destiny) 使用 `$ra`
+
+caller save: callee can arbitarrily use the register.
+
+- a0 ~ a7 (x10 ~ x17): caller save, it is input parameter of a function; a0 and a1 for return address
+
+- t0 ~ t6 (x5 ~ x7, x28 ~ x31): caller save, temp registers
+
+- s0 ~ s11 (x8 ~ x9, x18 ~ x27): callee save, callee should save the value and then can use them
+
+x0: 恒为0
+
+x1(ra): coller save, 调用函数前压栈？
+
+x2(sp): collee save, stack pointer
+
+s0(fp): frame pointer, the start of current stack frame, callee savev
+
+gp(x3), tp(x4): 整个运行期间都不会变
+
+### frame structure
+
+- `fp` stores the begining of new stack' callee save
+- `sp` points to the end of current frame
+- `ra` register stores the `pc` value of parent stack, caller saved on the first content of the frame
+- `prev fp` stores the beginning of the parent frame?
+
+![fame structure](https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/StackFrame.png)
