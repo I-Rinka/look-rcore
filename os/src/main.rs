@@ -1,5 +1,7 @@
 #![no_std]
 #![no_main]
+#![feature(panic_info_message)]
+
 use core::arch::global_asm;
 global_asm!(include_str!("entry.asm")); // include_str -> read string from file -> global_asm embed it into the code
 
@@ -11,7 +13,10 @@ mod sbi;
 fn rust_main() {
     // because we didn't clear the bss stack in asm, so we need to clear the bss here:
     clear_bss();
-    println!("Hello rCore!");
+    // info!("hello rCore!");
+    // debug!("hello rCore!");
+    // warn!("hello rCore!");
+    panic!("Manually shutdown!");
     loop {}
 }
 
